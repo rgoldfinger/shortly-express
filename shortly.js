@@ -55,6 +55,7 @@ app.post('/links', function(req, res) {
           url: uri,
           title: title,
           base_url: req.headers.origin
+          //TODO: Pull the user_id from the session and add to link
         });
 
         link.save().then(function(newLink) {
@@ -69,8 +70,63 @@ app.post('/links', function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
+// function isAuthenticated(req, res, next){
+//   if(req.user.authenticated){
+//     return next();
+//   }
+
+//   res.redirect('/login');
+// }
 
 
+app.get('/login', function(req, res) {
+  res.render('login');
+});
+
+// Get the username and password from the request
+// Send to our authentication handler
+app.post('/login', function(req, res){
+  var username = req.body.username;
+  var password = req.body.password;
+  if( isAuthenticated(username, password) ){
+    //TODO: Set the session
+    res.redirect('/');
+  } else {
+    res.redirect('/login');
+  }
+
+});
+
+app.get('/signup', function(req,res){
+  res.render('signup');
+});
+
+// check if username already exists
+app.post('/signup',function(req,res){
+  var username = req.body.username;
+  var password = req.body.password;
+  new User({username:username, password:password}).fetch().then(function(found){
+    if(found){
+      // TODO: modify login to display error message
+      res.send(200,'User already exists');
+    } else {
+      var user = new User({
+        username:username,
+        password:password
+      });
+
+      //TODO: set the session
+      user.save().then(function(newUser){
+        Users.add(newUser);
+        res.redirect('/');
+      });
+    }
+
+  });//end
+
+
+
+});
 
 /************************************************************/
 // Handle the wildcard route last - if all other routes fail

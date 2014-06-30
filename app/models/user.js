@@ -16,7 +16,10 @@ var User = db.Model.extend({
     // TODO: should this be in initialize???????
     this.on('creating', function(model, attrs, options){
       bcrypt.genSalt(10,function(err, salt){
-        bcrypt.hash(model.get('password'), salt,function(err, hash){
+        console.log('User creating');
+        var tmp = model.get('password');
+
+        bcrypt.hash(tmp, salt, function(){},function(err, hash){
           //save to database
           model.set('salt', salt);
           model.set('password', hash);
