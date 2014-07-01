@@ -1,6 +1,7 @@
 var express = require('express');
 var util = require('./lib/utility');
 var partials = require('express-partials');
+var bcrypt = require('bcrypt-nodejs');
 
 var db = require('./app/config');
 var Users = require('./app/collections/users');
@@ -17,23 +18,25 @@ app.configure(function() {
   app.use(partials());
   app.use(express.bodyParser())
   app.use(express.static(__dirname + '/public'));
+  app.use(express.cookieParser('s3cr3t'));
+  app.use(express.session());
 });
 
-app.get('/', function(req, res) {
+app.get('/', util.isValidSession, function(req, res) {
   res.render('index');
 });
 
-app.get('/create', function(req, res) {
+app.get('/create', util.isValidSession,function(req, res) {
   res.render('index');
 });
 
-app.get('/links', function(req, res) {
+app.get('/links', util.isValidSession,function(req, res) {
   Links.reset().fetch().then(function(links) {
     res.send(200, links.models);
   })
 });
 
-app.post('/links', function(req, res) {
+app.post('/links', util.isValidSession,function(req, res) {
   var uri = req.body.url;
 
   if (!util.isValidUrl(uri)) {
@@ -70,13 +73,11 @@ app.post('/links', function(req, res) {
 /************************************************************/
 // Write your authentication routes here
 /************************************************************/
-// function isAuthenticated(req, res, next){
-//   if(req.user.authenticated){
-//     return next();
-//   }
+// if the user isn't found return false
+// if the user is in the datbase, compare passwords
+// if matches, true
+//
 
-//   res.redirect('/login');
-// }
 
 
 app.get('/login', function(req, res) {
@@ -88,12 +89,15 @@ app.get('/login', function(req, res) {
 app.post('/login', function(req, res){
   var username = req.body.username;
   var password = req.body.password;
-  if( isAuthenticated(username, password) ){
-    //TODO: Set the session
-    res.redirect('/');
-  } else {
-    res.redirect('/login');
-  }
+  util.isAuthenticated(username, password, function(wasFound) {
+    if (wasFound) {
+      //TO DO: Set the session
+      console.log('going to helper');
+      util.createSession(req,res,username);
+    } else {
+      res.redirect('/login');
+    }
+  });
 
 });
 
@@ -110,22 +114,34 @@ app.post('/signup',function(req,res){
       // TODO: modify login to display error message
       res.send(200,'User already exists');
     } else {
-      var user = new User({
-        username:username,
-        password:password
-      });
+      bcrypt.genSalt(10,function(err, salt){
+        bcrypt.hash(password, salt, function(){},function(err, hash){
+          //save to database
+          var user = new User({
+            username:username,
+            password:hash,
+            salt:salt
+          });
 
-      //TODO: set the session
-      user.save().then(function(newUser){
-        Users.add(newUser);
-        res.redirect('/');
+          user.save().then(function(newUser){
+            Users.add(newUser);
+            util.createSession(req,res,username);
+          });
+        });
       });
     }
-
   });//end
+});
 
-
-
+//TODO: add logout links
+app.get('/logout', function(req,res){
+  if(req.session){
+    req.session.destroy(function(){
+      res.redirect('/');
+    });
+  } else {
+    res.redirect('/');
+  }
 });
 
 /************************************************************/
