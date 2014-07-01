@@ -92,7 +92,6 @@ app.post('/login', function(req, res){
   util.isAuthenticated(username, password, function(wasFound) {
     if (wasFound) {
       //TO DO: Set the session
-      console.log('going to helper');
       util.createSession(req,res,username);
     } else {
       res.redirect('/login');
